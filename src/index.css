@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #1e1e2e;
+  --bg-secondary: #181825;
+  --bg-surface: #313244;
+  --text-primary: #cdd6f4;
+  --text-secondary: #a6adc8;
+  --accent: #89b4fa;
+  --border: #45475a;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+#root {
+  height: 100vh;
+  width: 100vw;
+}
+
+/* TipTap editor */
+.tiptap {
+  outline: none;
+  padding: 1rem;
+  min-height: 100%;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.tiptap h1 { font-size: 2em; font-weight: 700; margin: 0.5em 0 0.3em; }
+.tiptap h2 { font-size: 1.5em; font-weight: 600; margin: 0.5em 0 0.3em; }
+.tiptap h3 { font-size: 1.25em; font-weight: 600; margin: 0.5em 0 0.3em; }
+.tiptap p { margin: 0.3em 0; }
+.tiptap code { background: var(--bg-surface); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; }
+.tiptap pre { background: var(--bg-secondary); padding: 1em; border-radius: 8px; overflow-x: auto; margin: 0.5em 0; }
+.tiptap blockquote { border-left: 3px solid var(--accent); padding-left: 1em; margin: 0.5em 0; color: var(--text-secondary); }
+.tiptap ul, .tiptap ol { padding-left: 1.5em; }
