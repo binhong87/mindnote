@@ -1,73 +1,82 @@
-# React + TypeScript + Vite
+# MindNotes 🧠
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> A local-first, AI-powered personal knowledge management app
 
-Currently, two official plugins are available:
+## ✨ Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### 📝 Rich Note Taking
+- Full markdown editor with live preview
+- Syntax highlighting in code blocks
+- Tables, task lists, images, links
+- YAML frontmatter & tags
+- Internal wiki links `[[note-name]]`
+- Backlinks panel
 
-## React Compiler
+### 🔍 Smart Search
+- Full-text search across all notes
+- Tag-based filtering
+- Quick open (command palette)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 🕸️ Knowledge Graph
+- Visual graph of all notes and connections
+- Interactive mind map editor
+- Auto-generate mind maps from note structure
+- Personal CRM view
 
-## Expanding the ESLint configuration
+### 🤖 AI Assistant (Plugin)
+- Multiple LLM providers: OpenAI, Anthropic, Gemini, Ollama, OpenRouter
+- Summarize, rewrite, improve selected text
+- AI chat sidebar with note context
+- Auto-suggest tags
+- RAG-powered responses from your notes (TF-IDF indexing)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 🔌 Plugin System
+- Extensible plugin architecture
+- Enable/disable plugins with one click
+- Plugin settings & configuration
+- Full AppAPI for plugin developers
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 💾 Local First
+- All data stored as markdown files on your filesystem
+- No cloud required, you own your data
+- Git-based version history
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## 🚀 Getting Started
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Prerequisites
+- Node.js 18+
+- Rust (for Tauri desktop builds)
+
+### Development
+```bash
+git clone https://github.com/binhong87/mindnote.git
+cd mindnote
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Desktop App (Tauri)
+```bash
+npm run tauri dev     # development
+npm run tauri build   # production build
 ```
+
+## 🗺️ Roadmap
+- [x] Phase 1: Foundation & file management
+- [x] Phase 2: Rich editing & search
+- [x] Phase 4: Mind maps & knowledge graph
+- [x] Phase 3: Plugin framework & AI assistant
+- [ ] Phase 5: Mobile (iOS/Android via Tauri)
+- [ ] Phase 6: Canvas/whiteboard, voice notes, collaboration
+
+## 🛠️ Tech Stack
+- **Framework:** Tauri v2 (desktop + mobile)
+- **Frontend:** React 18 + TypeScript + Vite
+- **Editor:** TipTap
+- **Graph:** React Flow
+- **Styling:** Tailwind CSS
+- **State:** Zustand
+- **AI:** Configurable LLM providers
+
+## 📄 License
+MIT
