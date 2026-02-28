@@ -30,6 +30,14 @@
 - Auto-suggest tags
 - RAG-powered responses from your notes (TF-IDF indexing)
 
+### 🎨 Phase 5: Polish
+- **Command Palette** (`Cmd+P`) — Obsidian-style fuzzy search for notes and commands
+- **Light/Dark Theme** — toggle with `☀️/🌙` button, persisted in localStorage
+- **Comprehensive Settings Panel** — Editor, Appearance, Notes, Plugins, AI, Keybindings, About
+- **Export Notes** — HTML (standalone), PDF (print), or all notes as ZIP
+- **Responsive UI** — mobile-friendly layout with hamburger menu, bottom nav, floating action button
+- **Keyboard Shortcuts** — full set of shortcuts throughout the app
+
 ### 🔌 Plugin System
 - Extensible plugin architecture
 - Enable/disable plugins with one click
@@ -61,13 +69,26 @@ npm run tauri dev     # development
 npm run tauri build   # production build
 ```
 
+## ⌨️ Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+P` / `Ctrl+P` | Open Command Palette |
+| `Cmd+N` / `Ctrl+N` | New Note |
+| `Cmd+,` / `Ctrl+,` | Open Settings |
+| `Cmd+G` / `Ctrl+G` | Toggle Graph View |
+| `Cmd+M` / `Ctrl+M` | Toggle Mind Map |
+| `Cmd+S` / `Ctrl+S` | Save Note (toast confirmation) |
+| `Cmd+F` / `Ctrl+F` | Focus Search |
+| `Escape` | Close Modal / Command Palette |
+
 ## 🗺️ Roadmap
 - [x] Phase 1: Foundation & file management
 - [x] Phase 2: Rich editing & search
-- [x] Phase 4: Mind maps & knowledge graph
 - [x] Phase 3: Plugin framework & AI assistant
-- [ ] Phase 5: Mobile (iOS/Android via Tauri)
-- [ ] Phase 6: Canvas/whiteboard, voice notes, collaboration
+- [x] Phase 4: Mind maps & knowledge graph
+- [x] Phase 5: Polish — command palette, themes, settings, export, responsive UI, keyboard shortcuts
+- [ ] Phase 6: Mobile (iOS/Android via Tauri), Canvas/whiteboard, voice notes, collaboration
 
 ## 🛠️ Tech Stack
 - **Framework:** Tauri v2 (desktop + mobile)
