@@ -44,3 +44,20 @@ body {
 .tiptap pre { background: var(--bg-secondary); padding: 1em; border-radius: 8px; overflow-x: auto; margin: 0.5em 0; }
 .tiptap blockquote { border-left: 3px solid var(--accent); padding-left: 1em; margin: 0.5em 0; color: var(--text-secondary); }
 .tiptap ul, .tiptap ol { padding-left: 1.5em; }
+.tiptap ul[data-type="taskList"] { list-style: none; padding-left: 0; }
+.tiptap ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5em; }
+.tiptap ul[data-type="taskList"] li > label { margin-top: 0.2em; }
+.tiptap img { max-width: 100%; border-radius: 4px; }
+.tiptap a { color: var(--accent); text-decoration: underline; }
+.tiptap table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
+.tiptap table td, .tiptap table th { border: 1px solid var(--border); padding: 0.4em 0.8em; }
+.tiptap table th { background: var(--bg-secondary); font-weight: 600; }
+/* lowlight code highlighting */
+.hljs-keyword, .hljs-selector-tag { color: #cba6f7; }
+.hljs-string, .hljs-attr { color: #a6e3a1; }
+.hljs-number { color: #fab387; }
+.hljs-comment { color: #6c7086; font-style: italic; }
+.hljs-function, .hljs-title { color: #89b4fa; }
+.hljs-variable, .hljs-name { color: #cdd6f4; }
+.hljs-type, .hljs-class { color: #f9e2af; }
+.wiki-link { color: var(--accent); cursor: pointer; text-decoration: underline; }
