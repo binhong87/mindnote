@@ -13,8 +13,9 @@ import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { createLowlight, common } from 'lowlight'
 import { useAppStore } from '../store/appStore'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useCallback } from 'react'
 import matter from 'gray-matter'
+import { generateMindMapFromMarkdown } from './MindMap/generateFromNote'
 
 const lowlight = createLowlight(common)
 
@@ -69,7 +70,7 @@ function getBacklinks(files: import('../store/appStore').FileNode[], noteContent
 }
 
 export default function Editor() {
-  const { content, setContent, rawContent, setRawContent, activeFile, setNoteMetadata, files, noteContents, setActiveFile } = useAppStore()
+  const { content, setContent, rawContent, setRawContent, activeFile, setNoteMetadata, files, noteContents, setActiveFile, vaultPath, setViewMode, setActiveMindMap } = useAppStore()
 
   const editor = useEditor({
     extensions: [
@@ -141,6 +142,32 @@ export default function Editor() {
 
   const backlinks = useMemo(() => getBacklinks(files, noteContents, activeFile), [files, noteContents, activeFile])
 
+  // Generate mind map from current note
+  const generateMindMap = useCallback(async () => {
+    if (!activeFile || !vaultPath) return
+    const title = activeFile.split('/').pop()?.replace('.md', '') || 'Mind Map'
+    const { nodes, edges } = generateMindMapFromMarkdown(rawContent, title)
+    const data = {
+      nodes: nodes.map(n => ({
+        id: n.id,
+        label: n.data.label as string,
+        x: n.position.x,
+        y: n.position.y,
+        color: n.data.color as string,
+      })),
+      edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target })),
+    }
+    const mindmapPath = activeFile.replace('.md', '.mindmap.json')
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      await invoke('write_file', { path: mindmapPath, content: JSON.stringify(data, null, 2) })
+      setActiveMindMap(mindmapPath)
+      setViewMode('mindmap')
+    } catch (e) {
+      console.error('Failed to generate mind map:', e)
+    }
+  }, [activeFile, rawContent, vaultPath, setActiveMindMap, setViewMode])
+
   if (!activeFile) {
     return (
       <div className="flex items-center justify-center h-full text-[var(--text-secondary)]">
@@ -151,6 +178,16 @@ export default function Editor() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
+      {/* Editor Toolbar */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+        <button
+          onClick={generateMindMap}
+          className="px-3 py-1 text-xs rounded bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--accent)] hover:text-[var(--bg-primary)] font-medium transition"
+          title="Generate Mind Map from headings"
+        >
+          🧠 Generate Mind Map
+        </button>
+      </div>
       <div className="flex-1 overflow-y-auto">
         <EditorContent editor={editor} className="h-full" />
       </div>

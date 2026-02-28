@@ -37,14 +37,23 @@ function getNoteTags(raw: string): string[] {
 interface ContextMenu { x: number; y: number; node: FileNode }
 
 function FileTreeItem({ node, depth = 0, onContextMenu }: { node: FileNode; depth?: number; onContextMenu: (e: React.MouseEvent, node: FileNode) => void }) {
-  const { activeFile, setActiveFile, setRawContent, noteContents } = useAppStore()
-  const isActive = activeFile === node.path
+  const { activeFile, setActiveFile, setRawContent, noteContents, setViewMode, setActiveMindMap, activeMindMap } = useAppStore()
+  const isMindMap = node.name.endsWith('.mindmap.json')
+  const isActive = activeFile === node.path || activeMindMap === node.path
   const [expanded, setExpanded] = useState(true)
-  const tags = !node.isDir ? getNoteTags(noteContents[node.path] || '') : []
+  const tags = !node.isDir && !isMindMap ? getNoteTags(noteContents[node.path] || '') : []
 
   const handleClick = async () => {
     if (node.isDir) { setExpanded(e => !e); return }
+    
+    if (isMindMap) {
+      setActiveMindMap(node.path)
+      setViewMode('mindmap')
+      return
+    }
+    
     setActiveFile(node.path)
+    setViewMode('editor')
     try {
       const { invoke } = await import('@tauri-apps/api/core')
       const content = await invoke<string>('read_file', { path: node.path })
@@ -53,6 +62,9 @@ function FileTreeItem({ node, depth = 0, onContextMenu }: { node: FileNode; dept
       setRawContent(`# ${node.name}\n\nStart writing here...`)
     }
   }
+
+  const displayName = isMindMap ? node.name.replace('.mindmap.json', '') : node.name.replace('.md', '')
+  const icon = node.isDir ? (expanded ? '📂' : '📁') : isMindMap ? '🧠' : '📄'
 
   return (
     <div>
@@ -66,8 +78,8 @@ function FileTreeItem({ node, depth = 0, onContextMenu }: { node: FileNode; dept
         }`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
       >
-        <span className="text-xs shrink-0">{node.isDir ? (expanded ? '📂' : '📁') : '📄'}</span>
-        <span className="truncate flex-1">{node.name.replace('.md', '')}</span>
+        <span className="text-xs shrink-0">{icon}</span>
+        <span className="truncate flex-1">{displayName}</span>
         {tags.length > 0 && (
           <div className="flex gap-0.5 shrink-0">
             {tags.slice(0, 2).map(t => (

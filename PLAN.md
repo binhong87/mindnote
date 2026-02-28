@@ -38,7 +38,23 @@ An Obsidian-like, local-first note-taking and knowledge management app with AI f
 - [ ] Tags and metadata (YAML frontmatter)
 - [ ] Backlinks and internal linking (`[[wiki-links]]`)
 
-### Phase 3: AI Features (Week 5-6)
+### Phase 3: Plugin Framework (Week 5-6)
+- [ ] Plugin architecture design (manifest, lifecycle hooks, sandboxing)
+- [ ] Plugin registry and loader
+- [ ] Plugin settings UI (enable/disable, configure per plugin)
+- [ ] Built-in plugin SDK (TypeScript types, helper APIs)
+- [ ] AI provider as first plugin (OpenAI, Anthropic, Gemini, Ollama)
+- [ ] Plugin marketplace scaffold (local install from .plugin file)
+
+### Phase 3b: AI Plugin (Week 7)
+- [ ] LLM provider configuration (API key, model selection, base URL)
+- [ ] AI summarize selected text / entire note
+- [ ] AI rewrite / improve text
+- [ ] AI-assisted note organization (suggest categories, tags)
+- [ ] AI chat sidebar (ask questions about your notes)
+- [ ] RAG: index notes for context-aware AI responses
+
+### Phase 4 (moved up): Mind Maps & Graphs (Week 5-6)
 - [ ] LLM provider configuration (API key, model selection, base URL)
 - [ ] AI summarize selected text / entire note
 - [ ] AI rewrite / improve text

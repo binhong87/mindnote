@@ -16,7 +16,18 @@ export interface NoteMetadata {
   modified?: string
 }
 
+export type ViewMode = 'editor' | 'graph' | 'mindmap' | 'crm'
+
+export interface MindMapData {
+  nodes: { id: string; label: string; x: number; y: number; color?: string }[]
+  edges: { id: string; source: string; target: string }[]
+}
+
 interface AppState {
+  viewMode: ViewMode
+  setViewMode: (mode: ViewMode) => void
+  activeMindMap: string | null
+  setActiveMindMap: (path: string | null) => void
   vaultPath: string
   setVaultPath: (path: string) => void
   files: FileNode[]
@@ -40,6 +51,10 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
+  viewMode: 'editor' as ViewMode,
+  setViewMode: (mode) => set({ viewMode: mode }),
+  activeMindMap: null,
+  setActiveMindMap: (path) => set({ activeMindMap: path }),
   vaultPath: '',
   setVaultPath: (path) => set({ vaultPath: path }),
   files: [],
