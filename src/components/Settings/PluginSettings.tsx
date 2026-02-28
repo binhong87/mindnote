@@ -4,6 +4,7 @@ import type { PluginRegistryEntry } from '../../plugins/types'
 
 export default function PluginSettings() {
   const [plugins, setPlugins] = useState<PluginRegistryEntry[]>(pluginManager.getAll())
+  const [configPlugin, setConfigPlugin] = useState<string | null>(null)
   const [, forceUpdate] = useState(0)
 
   const toggle = (id: string, enabled: boolean) => {
@@ -14,6 +15,28 @@ export default function PluginSettings() {
     }
     setPlugins(pluginManager.getAll())
     forceUpdate(n => n + 1)
+  }
+
+  const refresh = () => {
+    setPlugins(pluginManager.getAll())
+    forceUpdate(n => n + 1)
+  }
+
+  const configEntry = configPlugin ? plugins.find(p => p.plugin.id === configPlugin) : null
+  const ConfigComponent = configEntry?.plugin.settingsComponent
+
+  if (ConfigComponent) {
+    return (
+      <div className="p-4">
+        <button
+          onClick={() => { setConfigPlugin(null); refresh() }}
+          className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] mb-3 inline-block"
+        >
+          ← Back to Plugins
+        </button>
+        <ConfigComponent />
+      </div>
+    )
   }
 
   return (
@@ -28,22 +51,32 @@ export default function PluginSettings() {
               key={plugin.id}
               className="flex items-center justify-between bg-[var(--bg-surface)] rounded-lg p-3"
             >
-              <div>
+              <div className="flex-1 min-w-0">
                 <div className="font-medium text-[var(--text-primary)]">{plugin.name}</div>
                 <div className="text-xs text-[var(--text-secondary)]">
                   {plugin.description} — v{plugin.version} by {plugin.author}
                 </div>
               </div>
-              <button
-                onClick={() => toggle(plugin.id, enabled)}
-                className={`px-3 py-1 text-xs rounded font-semibold ${
-                  enabled
-                    ? 'bg-[#a6e3a1] text-[var(--bg-primary)]'
-                    : 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-[var(--border)]'
-                }`}
-              >
-                {enabled ? 'Enabled' : 'Disabled'}
-              </button>
+              <div className="flex items-center gap-2 ml-3">
+                {plugin.settingsComponent && (
+                  <button
+                    onClick={() => setConfigPlugin(plugin.id)}
+                    className="px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] rounded"
+                  >
+                    ⚙️
+                  </button>
+                )}
+                <button
+                  onClick={() => toggle(plugin.id, enabled)}
+                  className={`px-3 py-1 text-xs rounded font-semibold ${
+                    enabled
+                      ? 'bg-[#a6e3a1] text-[var(--bg-primary)]'
+                      : 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-[var(--border)]'
+                  }`}
+                >
+                  {enabled ? 'Enabled' : 'Disabled'}
+                </button>
+              </div>
             </div>
           ))}
         </div>

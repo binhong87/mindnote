@@ -1,7 +1,8 @@
 import type { MindNotesPlugin, AppAPI } from './types'
 import { pluginManager } from './PluginManager'
+import { aiPlugin } from './ai-plugin'
 
-// Example built-in plugin: Word Count
+// Built-in plugin: Word Count
 const wordCountPlugin: MindNotesPlugin = {
   id: 'builtin-word-count',
   name: 'Word Count',
@@ -13,14 +14,14 @@ const wordCountPlugin: MindNotesPlugin = {
       console.log('Word count command executed')
     })
   },
-  onUnload() {
-    console.log('Word count plugin unloaded')
-  },
+  onUnload() {},
 }
 
-// Register built-in plugins
 export function registerBuiltinPlugins() {
   pluginManager.register(wordCountPlugin)
+  pluginManager.register(aiPlugin)
+  // Auto-enable AI plugin
+  pluginManager.enable('ai-assistant')
 }
 
-export const builtinPlugins = [wordCountPlugin]
+export const builtinPlugins = [wordCountPlugin, aiPlugin]
