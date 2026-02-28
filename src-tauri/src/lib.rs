@@ -3,20 +3,20 @@ use std::fs;
 use std::path::Path;
 
 #[derive(Serialize)]
-pub struct DirEntry {
-    pub name: String,
-    pub path: String,
-    pub is_dir: bool,
-    pub children: Option<Vec<DirEntry>>,
+struct DirEntry {
+    name: String,
+    path: String,
+    is_dir: bool,
+    children: Option<Vec<DirEntry>>,
 }
 
 #[tauri::command]
-pub fn read_file(path: String) -> Result<String, String> {
+fn read_file(path: String) -> Result<String, String> {
     fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn write_file(path: String, content: String) -> Result<(), String> {
+fn write_file(path: String, content: String) -> Result<(), String> {
     if let Some(parent) = Path::new(&path).parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -24,7 +24,7 @@ pub fn write_file(path: String, content: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn list_directory(path: String) -> Result<Vec<DirEntry>, String> {
+fn list_directory(path: String) -> Result<Vec<DirEntry>, String> {
     fn read_dir_recursive(dir: &Path) -> Result<Vec<DirEntry>, String> {
         let mut entries = Vec::new();
         let read_dir = fs::read_dir(dir).map_err(|e| e.to_string())?;
@@ -62,7 +62,7 @@ pub fn list_directory(path: String) -> Result<Vec<DirEntry>, String> {
 }
 
 #[tauri::command]
-pub fn create_note(path: String) -> Result<(), String> {
+fn create_note(path: String) -> Result<(), String> {
     if let Some(parent) = Path::new(&path).parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -70,7 +70,7 @@ pub fn create_note(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn delete_note(path: String) -> Result<(), String> {
+fn delete_note(path: String) -> Result<(), String> {
     fs::remove_file(&path).map_err(|e| e.to_string())
 }
 
