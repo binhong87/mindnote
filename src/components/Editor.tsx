@@ -13,7 +13,7 @@ import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { createLowlight, common } from 'lowlight'
 import { useAppStore } from '../store/appStore'
-import { useEffect, useMemo, useCallback } from 'react'
+import { useEffect, useMemo, useCallback, useRef, useState } from 'react'
 import matter from 'gray-matter'
 import { generateMindMapFromMarkdown } from './MindMap/generateFromNote'
 
@@ -70,7 +70,25 @@ function getBacklinks(files: import('../store/appStore').FileNode[], noteContent
 }
 
 export default function Editor() {
-  const { content, setContent, rawContent, setRawContent, activeFile, setNoteMetadata, files, noteContents, setActiveFile, vaultPath, setViewMode, setActiveMindMap } = useAppStore()
+  const { content, setContent, rawContent, setRawContent, activeFile, setNoteMetadata, files, noteContents, setNoteContent, setActiveFile, vaultPath, setViewMode, setActiveMindMap } = useAppStore()
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'saving'>('idle')
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const currentRawRef = useRef(rawContent)
+
+  const saveNote = useCallback(async (filePath: string, rawMarkdown: string) => {
+    if (!filePath) return
+    try {
+      setSaveStatus('saving')
+      const { invoke } = await import('@tauri-apps/api/core')
+      await invoke('write_file', { path: filePath, content: rawMarkdown })
+      setNoteContent(filePath, rawMarkdown)
+      setSaveStatus('saved')
+      setTimeout(() => setSaveStatus('idle'), 2000)
+    } catch (err) {
+      console.error('Failed to save:', err)
+      setSaveStatus('idle')
+    }
+  }, [setNoteContent])
 
   const editor = useEditor({
     extensions: [
@@ -88,7 +106,26 @@ export default function Editor() {
     ],
     content: content,
     onUpdate: ({ editor }) => {
-      setContent(editor.getHTML())
+      const html = editor.getHTML()
+      setContent(html)
+      // Update raw content: reconstruct markdown from frontmatter + body text
+      // Use the HTML as body and preserve frontmatter
+      let newRaw: string
+      try {
+        const parsed = matter(currentRawRef.current || '')
+        const frontmatter = parsed.matter ? `---\n${parsed.matter}\n---\n` : ''
+        // Simple: store HTML body (editor is HTML-based)
+        newRaw = frontmatter + html
+      } catch {
+        newRaw = html
+      }
+      currentRawRef.current = newRaw
+      setRawContent(newRaw)
+      // Debounced auto-save
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+      autoSaveTimer.current = setTimeout(() => {
+        if (activeFile) saveNote(activeFile, newRaw)
+      }, 2000)
     },
     editorProps: {
       attributes: { class: 'tiptap' },
@@ -98,6 +135,7 @@ export default function Editor() {
   // Parse frontmatter and load content when activeFile changes
   useEffect(() => {
     if (!editor || !activeFile) return
+    currentRawRef.current = rawContent || ''
     try {
       const parsed = matter(rawContent || '')
       const tags = Array.isArray(parsed.data?.tags) ? parsed.data.tags : 
@@ -114,6 +152,18 @@ export default function Editor() {
       editor.commands.setContent(rawContent || '<p></p>')
     }
   }, [activeFile, rawContent])
+
+  // Cmd+S / Ctrl+S save
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault()
+        if (activeFile) saveNote(activeFile, currentRawRef.current)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [activeFile, saveNote])
 
   // Handle wiki navigation
   useEffect(() => {
@@ -187,6 +237,19 @@ export default function Editor() {
         >
           🧠 Generate Mind Map
         </button>
+        <button
+          onClick={() => activeFile && saveNote(activeFile, currentRawRef.current)}
+          className="px-3 py-1 text-xs rounded bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--accent)] hover:text-[var(--bg-primary)] font-medium transition"
+          title="Save (⌘S)"
+        >
+          💾 Save
+        </button>
+        {saveStatus === 'saved' && (
+          <span className="text-xs text-green-400">✅ Saved</span>
+        )}
+        {saveStatus === 'saving' && (
+          <span className="text-xs text-[var(--text-secondary)]">Saving...</span>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto">
         <EditorContent editor={editor} className="h-full" />
