@@ -108,7 +108,7 @@ function flattenFiles(files: FileNode[]): FileNode[] {
 }
 
 export default function Sidebar() {
-  const { files, setFiles, setVaultPath, searchQuery, setSearchQuery, selectedTags, toggleTag, noteContents, setNoteContent } = useAppStore()
+  const { files, setFiles, setVaultPath, vaultPath, searchQuery, setSearchQuery, selectedTags, toggleTag, noteContents, setNoteContent, setActiveFile, setRawContent, setViewMode } = useAppStore()
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
@@ -119,9 +119,17 @@ export default function Sidebar() {
       const { invoke } = await import('@tauri-apps/api/core')
       const { homeDir } = await import('@tauri-apps/api/path')
       const home = await homeDir()
-      const vaultPath = pathOverride || `${home}MindNotes`
-      setVaultPath(vaultPath)
-      const entries = await invoke<any[]>('list_directory', { path: vaultPath })
+      // Load vault path: override > localStorage > default
+      const savedVault = localStorage.getItem('mindnotes_vault_path')
+      const vaultDir = pathOverride || savedVault || `${home}MindNotes`
+      
+      // Ensure vault exists (creates it + Welcome.md if needed)
+      await invoke('ensure_vault', { path: vaultDir })
+      
+      setVaultPath(vaultDir)
+      localStorage.setItem('mindnotes_vault_path', vaultDir)
+      
+      const entries = await invoke<any[]>('list_directory', { path: vaultDir })
       const mapEntries = (items: any[]): FileNode[] =>
         items.map((item: any) => ({
           id: item.path,
@@ -135,21 +143,24 @@ export default function Sidebar() {
       // Pre-load content for search
       const flat = flattenFiles(mapped)
       for (const f of flat) {
-        try {
-          const c = await invoke<string>('read_file', { path: f.path })
-          setNoteContent(f.path, c)
-        } catch {}
+        if (f.name.endsWith('.md')) {
+          try {
+            const c = await invoke<string>('read_file', { path: f.path })
+            setNoteContent(f.path, c)
+          } catch {}
+        }
       }
-    } catch {
-      const demoFiles: FileNode[] = [
-        { id: '1', name: 'Welcome.md', path: '/Welcome.md', isDir: false },
-        { id: '2', name: 'Ideas', path: '/Ideas', isDir: true, children: [
-          { id: '3', name: 'Project.md', path: '/Ideas/Project.md', isDir: false },
-        ]},
-      ]
-      setFiles(demoFiles)
+    } catch (err) {
+      console.error('Failed to load vault:', err)
+      // No demo files fallback — show empty state
+      setFiles([])
     }
   }
+
+  // Load on mount
+  useEffect(() => {
+    loadFiles()
+  }, [])
 
   // Close context menu on outside click
   useEffect(() => {
@@ -183,19 +194,67 @@ export default function Sidebar() {
     setContextMenu({ x: e.clientX, y: e.clientY, node })
   }
 
+  const handleNewNoteInSidebar = async () => {
+    const currentVault = vaultPath || localStorage.getItem('mindnotes_vault_path') || ''
+    if (!currentVault) return
+    const timestamp = Date.now()
+    const fileName = `Untitled-${timestamp}.md`
+    const filePath = `${currentVault}/${fileName}`
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      await invoke('write_file', { path: filePath, content: `# Untitled\n\n` })
+      await loadFiles()
+      setActiveFile(filePath)
+      setRawContent(`# Untitled\n\n`)
+      setViewMode('editor')
+    } catch (err) {
+      console.error('Failed to create note:', err)
+    }
+  }
+
+  const handleOpenVault = async () => {
+    // Prompt for path (dialog plugin not installed; can be upgraded later)
+    const path = prompt('Enter vault folder path:', vaultPath || '')
+    if (path && path.trim()) {
+      await loadFiles(path.trim())
+    }
+  }
+
   const handleNewNote = async () => {
     setContextMenu(null)
     const name = prompt('Note name:')
     if (!name) return
-    // In real Tauri app we'd invoke write_file
     try {
       const { invoke } = await import('@tauri-apps/api/core')
-      const basePath = contextMenu?.node.isDir ? contextMenu.node.path : (contextMenu?.node.path.split('/').slice(0, -1).join('/') || '/')
+      const basePath = contextMenu?.node
+        ? (contextMenu.node.isDir ? contextMenu.node.path : contextMenu.node.path.split('/').slice(0, -1).join('/'))
+        : (vaultPath || '')
       const path = `${basePath}/${name}.md`
-      await invoke('write_file', { path, content: `# ${name}\n\nStart writing here...\n` })
-      loadFiles()
-    } catch {
-      alert('Cannot create file outside Tauri')
+      const content = `# ${name}\n\nStart writing here...\n`
+      await invoke('write_file', { path, content })
+      await loadFiles()
+      setActiveFile(path)
+      setRawContent(content)
+      setViewMode('editor')
+    } catch (err) {
+      console.error('Failed to create note:', err)
+    }
+  }
+
+  const handleNewFolder = async () => {
+    setContextMenu(null)
+    const name = prompt('Folder name:')
+    if (!name) return
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const basePath = contextMenu?.node
+        ? (contextMenu.node.isDir ? contextMenu.node.path : contextMenu.node.path.split('/').slice(0, -1).join('/'))
+        : (vaultPath || '')
+      const path = `${basePath}/${name}`
+      await invoke('create_directory', { path })
+      await loadFiles()
+    } catch (err) {
+      console.error('Failed to create folder:', err)
     }
   }
 
@@ -206,9 +265,9 @@ export default function Sidebar() {
     try {
       const { invoke } = await import('@tauri-apps/api/core')
       await invoke('delete_file', { path: contextMenu.node.path })
-      loadFiles()
-    } catch {
-      alert('Cannot delete outside Tauri')
+      await loadFiles()
+    } catch (err) {
+      console.error('Failed to delete:', err)
     }
   }
 
@@ -219,14 +278,45 @@ export default function Sidebar() {
     setContextMenu(null)
   }
 
+  const handleRenameSubmit = async (oldPath: string) => {
+    if (!renameValue.trim()) { setRenaming(null); return }
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const dir = oldPath.split('/').slice(0, -1).join('/')
+      const ext = oldPath.endsWith('.md') ? '.md' : oldPath.endsWith('.mindmap.json') ? '.mindmap.json' : ''
+      const newPath = `${dir}/${renameValue.trim()}${ext}`
+      await invoke('rename_file', { oldPath, newPath })
+      setRenaming(null)
+      await loadFiles()
+    } catch (err) {
+      console.error('Failed to rename:', err)
+      setRenaming(null)
+    }
+  }
+
   return (
     <div className="w-64 h-full bg-[var(--bg-secondary)] border-r border-[var(--border)] flex flex-col relative">
       {/* Header */}
-      <div className="p-3 border-b border-[var(--border)] flex items-center justify-between">
-        <h1 className="text-sm font-semibold text-[var(--accent)]">MindNotes</h1>
+      <div className="p-3 border-b border-[var(--border)] flex items-center justify-between gap-1">
+        <h1 className="text-sm font-semibold text-[var(--accent)] truncate flex-1">MindNotes</h1>
+        <button
+          onClick={handleOpenVault}
+          className="text-xs px-1.5 py-1 rounded bg-[var(--bg-surface)] hover:bg-[var(--accent)] hover:text-[var(--bg-primary)] transition"
+          title="Open Vault"
+        >
+          📂
+        </button>
+        <button
+          onClick={handleNewNoteInSidebar}
+          className="text-xs px-1.5 py-1 rounded bg-[var(--bg-surface)] hover:bg-[var(--accent)] hover:text-[var(--bg-primary)] transition font-bold"
+          title="New Note"
+        >
+          +
+        </button>
         <button
           onClick={() => loadFiles()}
-          className="text-xs px-2 py-1 rounded bg-[var(--bg-surface)] hover:bg-[var(--accent)] hover:text-[var(--bg-primary)] transition"
+          className="text-xs px-1.5 py-1 rounded bg-[var(--bg-surface)] hover:bg-[var(--accent)] hover:text-[var(--bg-primary)] transition"
+          title="Refresh"
         >
           ↻
         </button>
@@ -264,7 +354,7 @@ export default function Sidebar() {
       <div className="flex-1 overflow-y-auto py-1">
         {filteredFiles.length === 0 ? (
           <p className="text-xs text-[var(--text-secondary)] p-3">
-            {files.length === 0 ? 'Click ↻ to load notes' : 'No matching notes'}
+            {files.length === 0 ? 'Loading vault...' : 'No matching notes'}
           </p>
         ) : (
           filteredFiles.map((node) => (
@@ -272,8 +362,7 @@ export default function Sidebar() {
               {renaming === node.path ? (
                 <form onSubmit={async (e) => {
                   e.preventDefault()
-                  setRenaming(null)
-                  // In Tauri would invoke rename
+                  await handleRenameSubmit(node.path)
                 }} className="px-3 py-1">
                   <input
                     autoFocus
@@ -300,7 +389,7 @@ export default function Sidebar() {
           onClick={e => e.stopPropagation()}
         >
           <button className="w-full text-left px-3 py-1.5 hover:bg-[var(--bg-secondary)]" onClick={handleNewNote}>📄 New Note</button>
-          <button className="w-full text-left px-3 py-1.5 hover:bg-[var(--bg-secondary)]" onClick={() => { /* new folder */ setContextMenu(null) }}>📁 New Folder</button>
+          <button className="w-full text-left px-3 py-1.5 hover:bg-[var(--bg-secondary)]" onClick={handleNewFolder}>📁 New Folder</button>
           <button className="w-full text-left px-3 py-1.5 hover:bg-[var(--bg-secondary)]" onClick={handleRename}>✏️ Rename</button>
           <div className="border-t border-[var(--border)] my-1" />
           <button className="w-full text-left px-3 py-1.5 hover:bg-[var(--bg-secondary)] text-red-400" onClick={handleDelete}>🗑️ Delete</button>
