@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/niceda/tauri-apps/tauri-v2/tooling/cli/schema.json",
   "productName": "MindNotes",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.mindnotes.app",
   "build": {
     "frontendDist": "../dist",
