@@ -44,7 +44,7 @@ fn list_directory(path: String) -> Result<Vec<DirEntry>, String> {
                     is_dir: true,
                     children: Some(children),
                 });
-            } else if name.ends_with(".md") {
+            } else if name.ends_with(".md") || name.ends_with(".mindmap.json") {
                 entries.push(DirEntry {
                     name,
                     path: path_str,
@@ -74,6 +74,31 @@ fn delete_note(path: String) -> Result<(), String> {
     fs::remove_file(&path).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn delete_file(path: String) -> Result<(), String> {
+    fs::remove_file(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn ensure_vault(path: String) -> Result<(), String> {
+    fs::create_dir_all(&path).map_err(|e| e.to_string())?;
+    let welcome = format!("{}/Welcome.md", path);
+    if !Path::new(&welcome).exists() {
+        fs::write(&welcome, "# Welcome to MindNotes 🧠\n\nThis is your personal knowledge vault.\n\n## Getting Started\n\n- Create a new note with the `+` button\n- Use `[[note-name]]` to link between notes\n- Press `Cmd+P` to open the command palette\n- Press `Cmd+G` to see your knowledge graph\n\n## Tips\n\n- Use `#tags` in frontmatter to organize notes\n- Use `## headings` to structure your notes\n- The graph view shows connections between your notes\n").map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
+    fs::rename(&old_path, &new_path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn create_directory(path: String) -> Result<(), String> {
+    fs::create_dir_all(&path).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -83,6 +108,10 @@ pub fn run() {
             list_directory,
             create_note,
             delete_note,
+            delete_file,
+            ensure_vault,
+            rename_file,
+            create_directory,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
