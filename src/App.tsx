@@ -77,7 +77,7 @@ export default function App() {
         if (viewMode !== 'mindmap') setActiveMindMap(null)
       } else if (e.key === 's' || e.key === 'S') {
         e.preventDefault()
-        setToast('✅ Saved')
+        // Save handled by Editor component directly
       } else if (e.key === 'f' || e.key === 'F') {
         e.preventDefault()
         const search = document.querySelector<HTMLInputElement>('input[placeholder*="Search"]')
@@ -94,13 +94,18 @@ export default function App() {
     try {
       const { invoke } = await import('@tauri-apps/api/core')
       const { homeDir } = await import('@tauri-apps/api/path')
-      const home = await homeDir()
-      const path = `${home}MindNotes/${name}.md`
+      const savedVault = localStorage.getItem('mindnotes_vault_path')
+      let vaultDir = savedVault
+      if (!vaultDir) {
+        const home = await homeDir()
+        vaultDir = `${home}MindNotes`
+      }
+      const path = `${vaultDir}/${name}.md`
       const templateContent = `# ${name}\n\nCreated: ${new Date().toISOString().split('T')[0]}\n\n`
       await invoke('write_file', { path, content: templateContent })
       setToast(`📄 Created ${name}`)
-    } catch {
-      setToast('ℹ️ Cannot create file in browser mode')
+    } catch (err) {
+      setToast(`❌ Failed to create note: ${err}`)
     }
   }, [])
 
