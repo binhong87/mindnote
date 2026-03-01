@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
@@ -14,12 +17,16 @@ jobs:
         include:
           - platform: macos-latest
             args: '--target aarch64-apple-darwin'
+            label: macos-arm64
           - platform: macos-latest
             args: '--target x86_64-apple-darwin'
+            label: macos-x64
           - platform: ubuntu-22.04
             args: ''
+            label: linux
           - platform: windows-latest
             args: ''
+            label: windows
 
     runs-on: ${{ matrix.platform }}
 
@@ -31,10 +38,10 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Rust
+      - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ contains(matrix.args, 'aarch64-apple-darwin') && 'aarch64-apple-darwin' || contains(matrix.args, 'x86_64-apple-darwin') && 'x86_64-apple-darwin' || '' }}
 
       - name: Install Linux deps
         if: matrix.platform == 'ubuntu-22.04'
@@ -45,13 +52,31 @@ jobs:
       - name: Install frontend deps
         run: npm install
 
-      - uses: tauri-apps/tauri-action@v0
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'MindNotes ${{ github.ref_name }}'
-          releaseBody: 'See CHANGELOG for details.'
+          releaseBody: |
+            ## MindNotes ${{ github.ref_name }}
+
+            ### Features
+            - 📝 Rich markdown editor with syntax highlighting
+            - 🔍 Full-text search across notes
+            - 🕸️ Knowledge graph visualization
+            - 🧠 Interactive mind map editor
+            - 🤖 AI assistant plugin (OpenAI, Anthropic, Gemini, Ollama)
+            - 🔌 Plugin framework
+            - ⌨️ Command palette (Cmd+P)
+            - 🎨 Light/dark theme
+
+            ### Downloads
+            - **macOS (Apple Silicon)**: `MindNotes_aarch64.dmg`
+            - **macOS (Intel)**: `MindNotes_x64.dmg`
+            - **Windows**: `MindNotes_x64-setup.exe`
+            - **Linux**: `MindNotes_amd64.AppImage` or `.deb`
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
