@@ -12,6 +12,8 @@ import { StatusBar, type StatusBarItem } from './layout/StatusBar'
 import { EditorTabs } from './editor/EditorTabs'
 import { EditorPane } from './editor/EditorPane'
 import { EditorService } from './editor/EditorService'
+import { CommandService } from './commands/CommandService'
+import { KeybindingService } from './commands/KeybindingService'
 
 // Existing components — still used directly for now (migrated in Step 6)
 import Sidebar from '../components/Sidebar'
@@ -84,24 +86,30 @@ export default function Workbench() {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey
-      if (!mod) return
+  // Command + Keybinding services
+  const commandService = useMemo(() => new CommandService(), [])
+  const keybindingService = useMemo(() => new KeybindingService(commandService), [commandService])
 
-      if (e.key === 'p' || e.key === 'P') { e.preventDefault(); setShowPalette(p => !p) }
-      else if (e.key === ',') { e.preventDefault(); setShowSettings(true) }
-      else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); handleNewNote() }
-      else if (e.key === 'g' || e.key === 'G') { e.preventDefault(); setViewMode(viewMode === 'graph' ? 'editor' : 'graph') }
-      else if (e.key === 'm' || e.key === 'M') { e.preventDefault(); setViewMode(viewMode === 'mindmap' ? 'editor' : 'mindmap'); if (viewMode !== 'mindmap') setActiveMindMap(null) }
-      else if (e.key === 's' || e.key === 'S') { e.preventDefault() }
-      else if (e.key === 'f' || e.key === 'F') { e.preventDefault(); document.querySelector<HTMLInputElement>('input[placeholder*="Search"]')?.focus() }
-      else if (e.key === 'b' || e.key === 'B') { e.preventDefault(); setSidebarVisible(v => !v) }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [viewMode])
+  // Register commands
+  useEffect(() => {
+    const cmds = [
+      { id: 'workbench.action.showCommandPalette', label: 'Show Command Palette', keybinding: 'Mod+P', execute: () => setShowPalette(p => !p) },
+      { id: 'workbench.action.openSettings', label: 'Open Settings', keybinding: 'Mod+,', execute: () => setShowSettings(true) },
+      { id: 'workbench.action.newNote', label: 'New Note', keybinding: 'Mod+N', category: 'File', execute: () => handleNewNote() },
+      { id: 'workbench.action.toggleGraph', label: 'Toggle Knowledge Graph', keybinding: 'Mod+G', category: 'View', execute: () => setViewMode(useAppStore.getState().viewMode === 'graph' ? 'editor' : 'graph') },
+      { id: 'workbench.action.toggleMindMap', label: 'Toggle Mind Map', keybinding: 'Mod+M', category: 'View', execute: () => { const s = useAppStore.getState(); s.setViewMode(s.viewMode === 'mindmap' ? 'editor' : 'mindmap'); if (s.viewMode !== 'mindmap') s.setActiveMindMap(null) } },
+      { id: 'workbench.action.save', label: 'Save', keybinding: 'Mod+S', category: 'File', execute: () => { /* handled by Editor component */ } },
+      { id: 'workbench.action.focusSearch', label: 'Focus Search', keybinding: 'Mod+F', execute: () => document.querySelector<HTMLInputElement>('input[placeholder*="Search"]')?.focus() },
+      { id: 'workbench.action.toggleSidebar', label: 'Toggle Sidebar', keybinding: 'Mod+B', category: 'View', execute: () => setSidebarVisible(v => !v) },
+      { id: 'workbench.action.toggleTheme', label: 'Toggle Theme', category: 'View', execute: () => toggleTheme() },
+      { id: 'workbench.action.exportHTML', label: 'Export as HTML', category: 'File', execute: () => handleExportHTML() },
+      { id: 'workbench.action.exportPDF', label: 'Export as PDF', category: 'File', execute: () => handleExportPDF() },
+    ]
+    cmds.forEach(c => commandService.registerCommand(c))
+    keybindingService.updateBindings(commandService.getCommands())
+    keybindingService.install()
+    return () => keybindingService.dispose()
+  }, [commandService, keybindingService])
 
   const handleNewNote = useCallback(async () => {
     const name = prompt('Note name:')
