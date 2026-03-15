@@ -100,6 +100,30 @@ export const aiPlugin: MindNotesPlugin = {
   author: 'MindNotes',
   settingsComponent: AIPluginSettingsView,
 
+  // VS Code-style contribution points
+  contributions: {
+    views: [
+      {
+        id: 'ai-chat',
+        label: 'AI Chat',
+        icon: '🤖',
+        order: 4,
+        location: 'sidebar' as const,
+        component: AIChatSidebar,
+      },
+    ],
+    commands: [
+      { id: 'ai.summarize', label: 'AI Summarize', category: 'AI', execute: () => { const sel = window.getSelection()?.toString(); if (!sel) return; aiAction('summarize', sel) } },
+      { id: 'ai.rewrite', label: 'AI Rewrite', category: 'AI', execute: () => { const sel = window.getSelection()?.toString(); if (!sel) return; aiAction('rewrite', sel) } },
+      { id: 'ai.improve', label: 'AI Improve Writing', category: 'AI', execute: () => { const sel = window.getSelection()?.toString(); if (!sel) return; aiAction('improve', sel) } },
+      { id: 'ai.continue', label: 'AI Continue Writing', category: 'AI', execute: () => aiAction('continue') },
+      { id: 'ai.autotag', label: 'AI Auto-tag', category: 'AI', execute: () => aiAction('autotag') },
+    ],
+    statusBarItems: [
+      { id: 'ai-status', text: '🤖 AI', tooltip: 'AI Assistant', alignment: 'right' as const, priority: 5 },
+    ],
+  },
+
   onLoad(app: AppAPI) {
     _appApi = app
 

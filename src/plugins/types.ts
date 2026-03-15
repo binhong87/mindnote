@@ -28,6 +28,7 @@ export interface MindNotesPlugin {
   description: string
   author: string
   settingsComponent?: ComponentType
+  contributions?: import('./contributions').PluginContribution
   onLoad(app: AppAPI): void | Promise<void>
   onUnload(): void | Promise<void>
 }
