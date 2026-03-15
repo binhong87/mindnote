@@ -1,26 +1,21 @@
 /**
  * Workbench — main application shell.
- * This is the VS Code-style layout container that replaces App.tsx.
- *
- * Step 2: Basic shell with layout zones.
- * Subsequent steps will wire real services into each zone.
+ * VS Code-style layout with activity bar, sidebar, editor area, aux sidebar, status bar.
  */
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { ActivityBar } from './layout/ActivityBar'
 import { SidebarShell } from './layout/SidebarShell'
 import { EditorArea } from './layout/EditorArea'
 import { AuxSidebar } from './layout/AuxSidebar'
-// Panel will be used in Step 8
-// import { Panel } from './layout/Panel'
 import { StatusBar, type StatusBarItem } from './layout/StatusBar'
+import { EditorTabs } from './editor/EditorTabs'
+import { EditorPane } from './editor/EditorPane'
+import { EditorService } from './editor/EditorService'
 
 // Existing components — still used directly for now (migrated in Step 6)
 import Sidebar from '../components/Sidebar'
-import Editor from '../components/Editor'
 import MetaPanel from '../components/MetaPanel'
-import KnowledgeGraph from '../components/Graph/KnowledgeGraph'
-import MindMapEditor from '../components/MindMap/MindMapEditor'
 import CommandPalette from '../components/CommandPalette'
 import SettingsPanel from '../components/Settings/SettingsPanel'
 import { Toast } from '../components/Toast'
@@ -28,7 +23,6 @@ import { useAppStore } from '../store/appStore'
 import { registerBuiltinPlugins } from '../plugins/registry'
 import { useTheme } from '../hooks/useTheme'
 import { exportToHTML, exportToPDF } from '../utils/export'
-import type { Node, Edge } from 'reactflow'
 
 // Register plugins on app start
 registerBuiltinPlugins()
@@ -43,42 +37,52 @@ const ACTIVITY_ITEMS = [
 
 export default function Workbench() {
   const { viewMode, setViewMode, activeMindMap, setActiveMindMap, activeFile, noteMetadata, content } = useAppStore()
-  const [mindMapData, setMindMapData] = useState<{ nodes: Node[]; edges: Edge[] } | null>(null)
   const [showPalette, setShowPalette] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [sidebarVisible, setSidebarVisible] = useState(true)
-  const [auxSidebarVisible, _setAuxSidebarVisible] = useState(false)
+  const [auxSidebarVisible] = useState(false)
   const [activeActivity, setActiveActivity] = useState<string>('explorer')
   const { theme, toggleTheme } = useTheme()
+
+  // EditorService singleton
+  const editorService = useMemo(() => new EditorService(), [])
+
+  // Sync appStore's activeFile → EditorService
+  useEffect(() => {
+    if (activeFile) {
+      editorService.openEditor(activeFile, { pinned: true })
+    }
+  }, [activeFile, editorService])
+
+  // Sync EditorService → appStore (when user clicks tabs)
+  useEffect(() => {
+    const d = editorService.onDidChangeActiveEditor((editor) => {
+      if (editor && editor.typeId === 'note') {
+        const store = useAppStore.getState()
+        if (store.activeFile !== editor.uri) {
+          // Load the file content via the existing Sidebar mechanism
+          store.setActiveFile(editor.uri)
+          // Load raw content if cached
+          const raw = store.noteContents[editor.uri]
+          if (raw) store.setRawContent(raw)
+        }
+      }
+    })
+    return () => d.dispose()
+  }, [editorService])
+
+  // Sync viewMode to activity bar
+  useEffect(() => {
+    if (viewMode === 'graph') setActiveActivity('graph')
+    else if (viewMode === 'mindmap') setActiveActivity('mindmap')
+    else setActiveActivity('explorer')
+  }, [viewMode])
 
   // Apply theme
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
-
-  // Load mind map data
-  useEffect(() => {
-    if (!activeMindMap) { setMindMapData(null); return }
-    import('@tauri-apps/api/core').then(({ invoke }) => {
-      invoke<string>('read_file', { path: activeMindMap })
-        .then(content => {
-          const data = JSON.parse(content)
-          const nodes: Node[] = data.nodes.map((n: { id: string; label: string; x: number; y: number; color?: string }) => ({
-            id: n.id,
-            data: { label: n.label, color: n.color || '#89b4fa' },
-            position: { x: n.x, y: n.y },
-            style: { background: n.color || '#89b4fa', color: '#1e1e2e', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: 600 },
-          }))
-          const edges: Edge[] = data.edges.map((e: { id: string; source: string; target: string }) => ({
-            id: e.id, source: e.source, target: e.target,
-            style: { stroke: '#585b70', strokeWidth: 2 },
-          }))
-          setMindMapData({ nodes, edges })
-        })
-        .catch(() => setMindMapData(null))
-    })
-  }, [activeMindMap])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -132,7 +136,6 @@ export default function Workbench() {
       setActiveActivity(id)
       setSidebarVisible(true)
     }
-    // Map certain activities to view modes
     if (id === 'graph') setViewMode('graph')
     else if (id === 'mindmap') { setViewMode('mindmap'); setActiveMindMap(null) }
     else if (id === 'explorer') setViewMode('editor')
@@ -147,20 +150,12 @@ export default function Workbench() {
     { id: 'settings', text: '⚙️', alignment: 'right', priority: 1, onClick: () => setShowSettings(true) },
   ]
 
-  const renderMain = () => {
-    switch (viewMode) {
-      case 'graph': return <KnowledgeGraph />
-      case 'crm': return <KnowledgeGraph filterCRM />
-      case 'mindmap': return <MindMapEditor initialData={mindMapData || undefined} filePath={activeMindMap || undefined} />
-      default: return <Editor />
-    }
-  }
+  // Determine what EditorInput to render — for now, still use viewMode as the source of truth
+  const currentEditorInput = editorService.activeEditor
 
   return (
     <div className="flex flex-col h-screen w-screen" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
-      {/* Main content area */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* Activity Bar */}
         <ActivityBar
           items={ACTIVITY_ITEMS}
           activeId={activeActivity}
@@ -170,28 +165,32 @@ export default function Workbench() {
           ]}
         />
 
-        {/* Sidebar */}
         <SidebarShell visible={sidebarVisible} title={ACTIVITY_ITEMS.find(i => i.id === activeActivity)?.label}>
           <Sidebar />
         </SidebarShell>
 
-        {/* Editor area + panel */}
         <EditorArea>
+          {/* Tab bar */}
+          <EditorTabs editorService={editorService} />
+          {/* Editor content — still uses viewMode for graph/mindmap, EditorPane for notes */}
           <div style={{ flex: 1, overflow: 'hidden' }}>
-            {renderMain()}
+            {viewMode === 'graph' ? (
+              <EditorPane input={{ uri: 'graph', label: 'Knowledge Graph', typeId: 'graph', pinned: true }} />
+            ) : viewMode === 'mindmap' ? (
+              <EditorPane input={{ uri: activeMindMap || 'mindmap', label: 'Mind Map', typeId: 'mindmap', pinned: true }} />
+            ) : (
+              <EditorPane input={currentEditorInput} />
+            )}
           </div>
         </EditorArea>
 
-        {/* Aux sidebar (meta panel) */}
         <AuxSidebar visible={auxSidebarVisible}>
           <MetaPanel />
         </AuxSidebar>
       </div>
 
-      {/* Status Bar */}
       <StatusBar items={statusBarItems} />
 
-      {/* Overlays */}
       <CommandPalette
         open={showPalette}
         onClose={() => setShowPalette(false)}
