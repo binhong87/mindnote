@@ -14,8 +14,10 @@ import { EditorPane } from './editor/EditorPane'
 import { EditorService } from './editor/EditorService'
 import { CommandService } from './commands/CommandService'
 import { KeybindingService } from './commands/KeybindingService'
+import { ViewService } from './views/ViewService'
+import { ViewContainer, registerViewComponent } from './views/ViewContainer'
 
-// Existing components — still used directly for now (migrated in Step 6)
+// Existing components
 import Sidebar from '../components/Sidebar'
 import MetaPanel from '../components/MetaPanel'
 import CommandPalette from '../components/CommandPalette'
@@ -29,26 +31,44 @@ import { exportToHTML, exportToPDF } from '../utils/export'
 // Register plugins on app start
 registerBuiltinPlugins()
 
-const ACTIVITY_ITEMS = [
-  { id: 'explorer', icon: '📁', label: 'Explorer' },
-  { id: 'search', icon: '🔍', label: 'Search' },
-  { id: 'graph', icon: '🕸️', label: 'Knowledge Graph' },
-  { id: 'mindmap', icon: '🧠', label: 'Mind Map' },
-  { id: 'ai', icon: '🤖', label: 'AI Assistant' },
-]
+// Register built-in view components (sidebar views render existing components)
+registerViewComponent('explorer', Sidebar)
+
+// Placeholder views for search, AI (will be enhanced in Step 6)
+function SearchPlaceholder() {
+  return <div style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: '12px' }}>Search — use ⌘F to focus</div>
+}
+function AIPlaceholder() {
+  return <div style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: '12px' }}>AI Assistant</div>
+}
+registerViewComponent('search', SearchPlaceholder)
+registerViewComponent('ai', AIPlaceholder)
 
 export default function Workbench() {
   const { viewMode, setViewMode, activeMindMap, setActiveMindMap, activeFile, noteMetadata, content } = useAppStore()
   const [showPalette, setShowPalette] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
-  const [sidebarVisible, setSidebarVisible] = useState(true)
-  const [auxSidebarVisible] = useState(false)
-  const [activeActivity, setActiveActivity] = useState<string>('explorer')
   const { theme, toggleTheme } = useTheme()
 
-  // EditorService singleton
+  // Services
   const editorService = useMemo(() => new EditorService(), [])
+  const commandService = useMemo(() => new CommandService(), [])
+  const keybindingService = useMemo(() => new KeybindingService(commandService), [commandService])
+  const viewService = useMemo(() => {
+    const vs = new ViewService()
+    // Register built-in sidebar views
+    vs.registerView({ id: 'explorer', label: 'Explorer', icon: '📁', order: 0, location: 'sidebar' })
+    vs.registerView({ id: 'search', label: 'Search', icon: '🔍', order: 1, location: 'sidebar' })
+    vs.registerView({ id: 'graph', label: 'Knowledge Graph', icon: '🕸️', order: 2, location: 'sidebar' })
+    vs.registerView({ id: 'mindmap', label: 'Mind Map', icon: '🧠', order: 3, location: 'sidebar' })
+    vs.registerView({ id: 'ai', label: 'AI Assistant', icon: '🤖', order: 4, location: 'sidebar' })
+    return vs
+  }, [])
+
+  const [activeActivity, setActiveActivity] = useState<string>('explorer')
+  const [sidebarVisible, setSidebarVisible] = useState(true)
+  const [auxSidebarVisible] = useState(false)
 
   // Sync appStore's activeFile → EditorService
   useEffect(() => {
@@ -86,11 +106,7 @@ export default function Workbench() {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
 
-  // Command + Keybinding services
-  const commandService = useMemo(() => new CommandService(), [])
-  const keybindingService = useMemo(() => new KeybindingService(commandService), [commandService])
-
-  // Register commands
+    // Register commands
   useEffect(() => {
     const cmds = [
       { id: 'workbench.action.showCommandPalette', label: 'Show Command Palette', keybinding: 'Mod+P', execute: () => setShowPalette(p => !p) },
@@ -159,13 +175,14 @@ export default function Workbench() {
   ]
 
   // Determine what EditorInput to render — for now, still use viewMode as the source of truth
-  const currentEditorInput = editorService.activeEditor
+  const sidebarViews = viewService.getViews('sidebar')
+  const activityItems = sidebarViews.map(v => ({ id: v.id, icon: v.icon, label: v.label }))
 
   return (
     <div className="flex flex-col h-screen w-screen" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <ActivityBar
-          items={ACTIVITY_ITEMS}
+          items={activityItems}
           activeId={activeActivity}
           onSelect={handleActivitySelect}
           bottomItems={[
@@ -173,8 +190,8 @@ export default function Workbench() {
           ]}
         />
 
-        <SidebarShell visible={sidebarVisible} title={ACTIVITY_ITEMS.find(i => i.id === activeActivity)?.label}>
-          <Sidebar />
+        <SidebarShell visible={sidebarVisible} title={sidebarViews.find(v => v.id === activeActivity)?.label}>
+          <ViewContainer activeViewId={activeActivity} />
         </SidebarShell>
 
         <EditorArea>
@@ -187,7 +204,7 @@ export default function Workbench() {
             ) : viewMode === 'mindmap' ? (
               <EditorPane input={{ uri: activeMindMap || 'mindmap', label: 'Mind Map', typeId: 'mindmap', pinned: true }} />
             ) : (
-              <EditorPane input={currentEditorInput} />
+              <EditorPane input={editorService.activeEditor} />
             )}
           </div>
         </EditorArea>
