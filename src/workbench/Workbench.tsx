@@ -27,6 +27,21 @@ import { useAppStore } from '../store/appStore'
 import { registerBuiltinPlugins } from '../plugins/registry'
 import { useTheme } from '../hooks/useTheme'
 import { exportToHTML, exportToPDF } from '../utils/export'
+import { ServiceCollection } from '../platform/instantiation/ServiceCollection'
+import { ServiceProvider } from '../platform/instantiation/react'
+import { IEditorService } from '../platform/services/IEditorService'
+import { ICommandService } from '../platform/services/ICommandService'
+import { IViewService } from '../platform/services/IViewService'
+import { IThemeService } from '../platform/services/IThemeService'
+import { IStorageService } from '../platform/services/IStorageService'
+import { INotificationService } from '../platform/services/INotificationService'
+import { IFileService } from '../platform/services/IFileService'
+import { IWorkspaceService } from '../platform/services/IWorkspaceService'
+import { TauriFileService } from './services/TauriFileService'
+import { ThemeService } from './services/ThemeService'
+import { LocalStorageService } from './services/StorageService'
+import { NotificationService } from './services/NotificationService'
+import { WorkspaceService } from './services/WorkspaceService'
 
 // Register plugins on app start
 registerBuiltinPlugins()
@@ -65,6 +80,20 @@ export default function Workbench() {
     vs.registerView({ id: 'ai', label: 'AI Assistant', icon: '🤖', order: 4, location: 'sidebar' })
     return vs
   }, [])
+
+  // Build ServiceCollection with all services
+  const services = useMemo(() => {
+    const sc = new ServiceCollection()
+    sc.set(IEditorService, editorService)
+    sc.set(ICommandService, commandService)
+    sc.set(IViewService, viewService)
+    sc.setFactory(IThemeService, () => new ThemeService())
+    sc.setFactory(IStorageService, () => new LocalStorageService())
+    sc.setFactory(INotificationService, () => new NotificationService())
+    sc.setFactory(IFileService, () => new TauriFileService())
+    sc.setFactory(IWorkspaceService, () => new WorkspaceService())
+    return sc
+  }, [editorService, commandService, viewService])
 
   const [activeActivity, setActiveActivity] = useState<string>('explorer')
   const [sidebarVisible, setSidebarVisible] = useState(true)
@@ -179,6 +208,7 @@ export default function Workbench() {
   const activityItems = sidebarViews.map(v => ({ id: v.id, icon: v.icon, label: v.label }))
 
   return (
+    <ServiceProvider value={services}>
     <div className="flex flex-col h-screen w-screen" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <ActivityBar
@@ -226,8 +256,9 @@ export default function Workbench() {
         onExportHTML={handleExportHTML}
         onToggleTheme={toggleTheme}
       />
-      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+            {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </div>
+    </ServiceProvider>
   )
 }
